@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.docx
+.DS_Store
+Thumbs.db
+.serena/
+*.bak
+*.swp
+.pytest_cache/
+CLAUDE.md
+prospero_registration.md
