@@ -222,6 +222,50 @@
                     <span class="text-[10px] text-slate-400 mb-2">Trials reporting both cardiac and renal outcomes; size = N, color = drug class</span>
                     <div id="correlation-scatter" class="w-full flex-1" role="img" aria-label="Scatter plot of cardiac vs renal hazard ratios"></div>
                 </div>
+
+                <!-- TOOLS PANEL: Effect Size Converter + Patient Risk Calculator -->
+                <div class="col-span-12 glass-panel p-4">
+                    <details>
+                        <summary class="font-bold text-slate-200 cursor-pointer text-xs">Clinical Tools</summary>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3">
+                            <!-- Effect Size Converter -->
+                            <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
+                                <h3 class="text-xs font-bold text-slate-300 mb-2 m-0">Effect Size Converter</h3>
+                                <div class="flex flex-wrap gap-2 mb-2">
+                                    <div class="flex items-center gap-1">
+                                        <label for="esc-type" class="text-[10px] text-slate-400">Input:</label>
+                                        <select id="esc-type" class="bg-slate-900 text-[10px] text-white border border-slate-600 rounded px-1 py-0.5 min-h-[36px]">
+                                            <option value="hr">HR</option>
+                                            <option value="or">OR</option>
+                                            <option value="rr">RR</option>
+                                            <option value="nnt">NNT</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <label for="esc-value" class="text-[10px] text-slate-400">Value:</label>
+                                        <input id="esc-value" type="number" step="any" value="0.80" class="bg-slate-900 text-[10px] text-white border border-slate-600 rounded px-1 py-0.5 w-20 min-h-[36px]">
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <label for="esc-cer" class="text-[10px] text-slate-400">CER %:</label>
+                                        <input id="esc-cer" type="number" step="any" value="20" class="bg-slate-900 text-[10px] text-white border border-slate-600 rounded px-1 py-0.5 w-16 min-h-[36px]">
+                                    </div>
+                                    <button onclick="window.convertEffectSize()" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[10px] px-3 py-1 rounded min-h-[36px]">Convert</button>
+                                </div>
+                                <div id="escResults" class="text-xs text-slate-300"><span style="opacity:0.6;">Enter a value and click Convert</span></div>
+                            </div>
+                            <!-- Patient Risk Calculator -->
+                            <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
+                                <h3 class="text-xs font-bold text-slate-300 mb-2 m-0">Patient Risk Calculator</h3>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <label for="risk-cer" class="text-[10px] text-slate-400">Baseline risk (CER):</label>
+                                    <input id="risk-cer" type="range" min="1" max="80" value="20" oninput="window.computePatientRisk()" class="flex-1">
+                                    <span id="risk-cer-val" class="text-[10px] text-white font-mono w-10 text-right">20%</span>
+                                </div>
+                                <div id="patientRiskResults" class="text-xs text-slate-300"><span style="opacity:0.6;">Load registry and run synthesis first</span></div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
             </div>
 
             <!-- VIEW: GEOMETRY -->
@@ -2317,6 +2361,8 @@ reml_m <- rma(yi,sei=sei,mods=~factor(class)-1,method="REML",data=mort); cat("RE
                 window.App.updateGeometryPlot();
                 window.App.renderCardiorenalScatter();
                 if (window.PatientMode._active) window.PatientMode.renderSummary();
+                // Refresh patient risk calculator if tools panel is open
+                if (document.getElementById('patientRiskResults')) window.computePatientRisk();
             },
 
             setEvidenceMapMode: (mode) => {
@@ -3210,6 +3256,152 @@ reml_m <- rma(yi,sei=sei,mods=~factor(class)-1,method="REML",data=mort); cat("RE
                     return false;
                 }
             }
+        };
+
+        // === PORTED TOOLS: Forest Sparkline, Patient Risk Calculator, Effect Size Converter ===
+
+        /**
+         * forestSparkline — pure SVG helper for inline forest plot sparklines.
+         * Returns an SVG string showing a point estimate diamond with CI whiskers.
+         * Uses log scale; null line at 1.0.
+         */
+        function forestSparkline(effect, ciLo, ciHi, opts) {
+            const w = opts?.width ?? 80, h = opts?.height ?? 16;
+            const minX = opts?.minX ?? 0.3, maxX = opts?.maxX ?? 3;
+            const toX = function(v) { return ((Math.log(v) - Math.log(minX)) / (Math.log(maxX) - Math.log(minX))) * w; };
+            const nullX = toX(1);
+            const estX = toX(Math.max(minX, Math.min(maxX, effect)));
+            const loX = toX(Math.max(minX, ciLo));
+            const hiX = toX(Math.min(maxX, ciHi));
+            const mid = h / 2;
+            let svg = '<svg width="' + w + '" height="' + h + '" style="vertical-align:middle;">';
+            svg += '<line x1="' + nullX + '" y1="0" x2="' + nullX + '" y2="' + h + '" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>';
+            svg += '<line x1="' + loX + '" y1="' + mid + '" x2="' + hiX + '" y2="' + mid + '" stroke="#3b82f6" stroke-width="2"/>';
+            svg += '<polygon points="' + (estX-4) + ',' + mid + ' ' + estX + ',' + (mid-5) + ' ' + (estX+4) + ',' + mid + ' ' + estX + ',' + (mid+5) + '" fill="#3b82f6"/>';
+            svg += '</svg>';
+            return svg;
+        }
+        window.forestSparkline = forestSparkline;
+
+        /**
+         * computePatientRisk — computes EER, ARD, NNT from a pooled HR and a user-supplied baseline risk.
+         * Adapted for CRES: reads the first class result from window.App.latestCNMA.
+         * HR-to-risk conversion: EER = 1 - (1 - CER)^HR (survival model).
+         * Falls back gracefully when no synthesis has been run.
+         */
+        window.computePatientRisk = function() {
+            const area = document.getElementById('patientRiskResults');
+            const slider = document.getElementById('risk-cer');
+            const valLabel = document.getElementById('risk-cer-val');
+            if (!area || !slider) return;
+            const cer = parseInt(slider.value) / 100;
+            if (valLabel) valLabel.textContent = (cer * 100).toFixed(0) + '%';
+
+            const cnma = window.App.latestCNMA;
+            if (!cnma || cnma.length === 0) {
+                area.innerHTML = '<span style="opacity:0.6;">Run synthesis first (Load Registry)</span>';
+                return;
+            }
+
+            // Build cards for each drug class
+            let html = '';
+            for (const r of cnma) {
+                const hr = r.hr;
+                const hrLo = r.lower;
+                const hrHi = r.upper;
+
+                // HR-to-risk via survival model: EER = 1 - (1 - CER)^HR
+                const eer = 1 - Math.pow(1 - cer, hr);
+                const eerLo = 1 - Math.pow(1 - cer, hrHi); // higher HR = worse
+                const eerHi = 1 - Math.pow(1 - cer, hrLo); // lower HR = better (lower eer)
+                const ard = cer - eer;
+                const nnt = ard > 0 ? Math.ceil(1 / ard) : (ard < 0 ? Math.ceil(1 / Math.abs(ard)) : null);
+                const nntLabel = ard > 0 ? 'NNT' : (ard < 0 ? 'NNH' : null);
+                const ardColor = ard > 0 ? '#16a34a' : ard < 0 ? '#dc2626' : '#64748b';
+                const sparkSvg = forestSparkline(hr, hrLo, hrHi, { width: 70, height: 14 });
+
+                html += '<div class="bg-slate-800/60 rounded border border-slate-700 p-2 mb-2">';
+                html += '<div class="flex items-center justify-between mb-1">';
+                html += '<span class="text-[11px] font-bold text-slate-200">' + escapeHtml(r.molecule) + '</span>';
+                html += '<span class="text-[10px] text-slate-400">HR ' + hr.toFixed(2) + ' (' + hrLo.toFixed(2) + '-' + hrHi.toFixed(2) + ') ' + sparkSvg + '</span>';
+                html += '</div>';
+                html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:4px;">';
+
+                html += '<div style="text-align:center;"><div style="font-size:1rem;font-weight:700;color:#3b82f6;">' + (eer * 100).toFixed(1) + '%</div>';
+                html += '<div style="font-size:0.65rem;opacity:0.6;">EER (' + (eerHi * 100).toFixed(1) + '-' + (eerLo * 100).toFixed(1) + '%)</div></div>';
+
+                html += '<div style="text-align:center;"><div style="font-size:1rem;font-weight:700;color:' + ardColor + ';">' + (ard > 0 ? '-' : '+') + (Math.abs(ard) * 100).toFixed(1) + '%</div>';
+                html += '<div style="font-size:0.65rem;opacity:0.6;">ARD</div></div>';
+
+                if (nnt != null) {
+                    html += '<div style="text-align:center;"><div style="font-size:1rem;font-weight:700;">' + nnt + '</div>';
+                    html += '<div style="font-size:0.65rem;opacity:0.6;">' + nntLabel + '</div></div>';
+                }
+
+                html += '<div style="text-align:center;"><div style="font-size:1rem;font-weight:700;">' + Math.round(Math.abs(ard) * 1000) + '</div>';
+                html += '<div style="font-size:0.65rem;opacity:0.6;">' + (ard > 0 ? 'Fewer' : 'More') + '/1000</div></div>';
+                html += '</div></div>';
+            }
+            area.innerHTML = html;
+        };
+
+        /**
+         * convertEffectSize — standalone converter between HR, OR, RR, NNT.
+         * Uses CER (control event rate) to bridge between measures.
+         */
+        window.convertEffectSize = function() {
+            const area = document.getElementById('escResults');
+            if (!area) return;
+            const type = document.getElementById('esc-type')?.value ?? 'hr';
+            const val = parseFloat(document.getElementById('esc-value')?.value);
+            const cer = parseFloat(document.getElementById('esc-cer')?.value) / 100;
+            if (!isFinite(val) || val <= 0 || !isFinite(cer) || cer <= 0 || cer >= 1) {
+                area.innerHTML = '<span style="opacity:0.6;">Enter valid positive value and baseline risk (0.1-99%)</span>';
+                return;
+            }
+
+            let or, rr, hr, logOR;
+            if (type === 'or') {
+                or = val; logOR = Math.log(or);
+                rr = or / (1 - cer + cer * or); hr = null;
+            } else if (type === 'rr') {
+                rr = val; or = rr * (1 - cer) / (1 - rr * cer);
+                logOR = Math.log(or); hr = null;
+            } else if (type === 'hr') {
+                hr = val;
+                // HR to risk: EER = 1 - (1-CER)^HR, then derive OR/RR
+                const eer = 1 - Math.pow(1 - cer, hr);
+                rr = cer > 0 ? eer / cer : hr;
+                or = rr * (1 - cer) / (1 - rr * cer);
+                logOR = Math.log(Math.max(0.001, or));
+            } else if (type === 'nnt') {
+                const ard = 1 / val; const eer = cer - ard;
+                rr = eer > 0 ? eer / cer : 0.01;
+                or = rr * (1 - cer) / (1 - rr * cer);
+                logOR = Math.log(Math.max(0.001, or)); hr = null;
+            }
+
+            const eer = (type === 'nnt') ? (cer - 1 / val) :
+                         (type === 'hr' && hr != null) ? (1 - Math.pow(1 - cer, hr)) :
+                         (or * cer / (1 - cer + or * cer));
+            const ard = cer - eer;
+            const nnt = ard > 0 ? Math.ceil(1 / ard) : null;
+
+            let html = '<table style="font-size:0.82rem;border-collapse:collapse;width:100%;">';
+            html += '<tr><td style="padding:4px;font-weight:600;">OR</td><td>' + (or != null ? or.toFixed(3) : 'N/A') + '</td>';
+            html += '<td style="padding:4px;font-weight:600;">RR</td><td>' + (rr != null ? rr.toFixed(3) : 'N/A') + '</td></tr>';
+            html += '<tr><td style="padding:4px;font-weight:600;">log(OR)</td><td>' + (logOR != null ? logOR.toFixed(4) : 'N/A') + '</td>';
+            if (hr != null) {
+                html += '<td style="padding:4px;font-weight:600;">HR</td><td>' + hr.toFixed(3) + '</td></tr>';
+            } else {
+                html += '<td style="padding:4px;font-weight:600;">ARD</td><td>' + (ard * 100).toFixed(2) + '%</td></tr>';
+            }
+            html += '<tr><td style="padding:4px;font-weight:600;">NNT</td><td>' + (nnt ?? 'N/A') + '</td>';
+            html += '<td style="padding:4px;font-weight:600;">EER</td><td>' + (eer * 100).toFixed(2) + '%</td></tr>';
+            html += '<tr><td style="padding:4px;font-weight:600;">CER</td><td>' + (cer * 100).toFixed(1) + '%</td>';
+            html += '<td style="padding:4px;font-weight:600;">Events/1000</td><td>' + Math.round(Math.abs(ard) * 1000) + (ard >= 0 ? ' fewer' : ' more') + '</td></tr>';
+            html += '</table>';
+            area.innerHTML = html;
         };
 
         // [P2-R2-7] addEventListener instead of window.onload assignment
