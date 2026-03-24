@@ -1,0 +1,38 @@
+{
+  "title": "CRES",
+  "description": "CRES (CardioRenal Evidence Synthesizer) v5.0: A browser-based interactive evidence synthesis platform for cardiorenal pharmacotherapy with integrated meta-analysis, GRADE assessment, and health-economic modelling.",
+  "upload_type": "software",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Ahmad, Mahmood",
+      "affiliation": "Royal Free Hospital"
+    },
+    {
+      "name": "Kumar, Niraj",
+      "affiliation": "Royal Free Hospital"
+    },
+    {
+      "name": "Dar, Bilaal",
+      "affiliation": "King's College Medical School"
+    },
+    {
+      "name": "Khan, Laiba",
+      "affiliation": "Royal Free Hospital"
+    },
+    {
+      "name": "Woo, Andrew",
+      "affiliation": "St George's Medical School"
+    }
+  ],
+  "keywords": [
+    "CRES",
+    "meta-analysis",
+    "cardiorenal",
+    "evidence-synthesis",
+    "cost-effectiveness",
+    "GRADE",
+    "open-access"
+  ],
+  "notes": "Accompanies PLOS ONE manuscript: CRES v5.0 — browser-based interactive evidence synthesis platform."
+}
