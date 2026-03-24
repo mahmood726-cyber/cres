@@ -6,7 +6,7 @@
     <!-- [P1-R3-5][P1-12] Content Security Policy -->
     <!-- unsafe-inline: required for single-file HTML architecture (all JS inline). unsafe-eval: required by math.js Function() and Tailwind JIT. -->
     <!-- For production: extract JS to external file with nonce; replace Tailwind CDN with pre-built CSS. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://unpkg.com https://cdn.plot.ly; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://clinicaltrials.gov/api/; img-src 'self' data: blob:; base-uri 'self'; form-action 'none'; object-src 'none'; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://unpkg.com https://cdn.plot.ly https://webr.r-wasm.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://clinicaltrials.gov/api/ https://webr.r-wasm.org; worker-src 'self' blob: https://webr.r-wasm.org; img-src 'self' data: blob:; base-uri 'self'; form-action 'none'; object-src 'none'; frame-ancestors 'none';">
     <!-- [P2-2] Referrer-Policy: prevent leaking page URL to CT.gov API -->
     <meta name="referrer" content="no-referrer">
     <meta name="description" content="CRES: Interactive evidence synthesis tool for cardiorenal pharmacotherapy. Browser-based meta-analysis of 20 landmark MRA and SGLT2i trials with GRADE, RoB 2.0, and health economic modelling.">
@@ -14,7 +14,7 @@
 
     <!-- Libraries [P0-R2-1: pinned versions + crossorigin; SRI hashes recommended for production] -->
     <!-- Note: Tailwind Play CDN is dev-only [P2-R2-5]; does not support SRI. Use build step for production. -->
-    <script src="https://cdn.tailwindcss.com/3.4.1" crossorigin="anonymous"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- [P0-R2-1] SRI integrity hashes computed from CDN resources -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
     <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js" integrity="sha384-yxKDWWf0wwdUj/gPeuL11czrnKFQROnLgY8ll7En9NYoXibgg3C6NK/UDHNtUgWJ" crossorigin="anonymous"></script>
@@ -3416,5 +3416,103 @@ reml_m <- rma(yi,sei=sei,mods=~factor(class)-1,method="REML",data=mort); cat("RE
             <button onclick="window.TruthCert.verify()" class="hover:text-white transition min-h-[44px] min-w-[44px]" aria-label="Verify evidence integrity">Verify</button>
         </div>
     </footer>
+    <script>
+        window.__webrValidationConfig = {
+            appName: 'CRES',
+            intro: 'Runs worked numerical checks on the built-in effect-size converter using WebR as an independent calculator.',
+            async prepare() {
+                document.getElementById('esc-type').value = 'hr';
+                document.getElementById('esc-value').value = '0.80';
+                document.getElementById('esc-cer').value = '20';
+                window.convertEffectSize();
+            },
+            async ready(h) {
+                await h.waitFor(() => typeof window.convertEffectSize === 'function' && document.querySelectorAll('#escResults td').length >= 8, 12000);
+            },
+            tests: [
+                {
+                    name: 'HR example matches WebR-derived OR, RR, EER, NNT, and events-per-1000 values',
+                    collect(h) {
+                        document.getElementById('esc-type').value = 'hr';
+                        document.getElementById('esc-value').value = '0.80';
+                        document.getElementById('esc-cer').value = '20';
+                        window.convertEffectSize();
+                        const cells = Array.from(document.querySelectorAll('#escResults td'));
+                        const values = {};
+                        for (let index = 0; index < cells.length; index += 2) {
+                            values[cells[index].textContent.trim()] = cells[index + 1].textContent.trim();
+                        }
+                        return {
+                            orValue: h.parseNumber(values['OR']),
+                            rrValue: h.parseNumber(values['RR']),
+                            eerValue: h.parseNumber(values['EER']),
+                            nntValue: h.parseNumber(values['NNT']),
+                            eventsPer1000: h.parseNumber(values['Events/1000']),
+                        };
+                    },
+                    r(payload) {
+                        return `
+cer <- 0.20
+hr <- 0.80
+eer <- 1 - (1 - cer)^hr
+rr <- eer / cer
+or_value <- rr * (1 - cer) / (1 - rr * cer)
+ard <- cer - eer
+nnt <- ceiling(1 / ard)
+events <- round(abs(ard) * 1000)
+checks <- c(
+  abs(round(or_value, 3) - ${payload.orValue}) < 0.001,
+  abs(round(rr, 3) - ${payload.rrValue}) < 0.001,
+  abs(round(eer * 100, 2) - ${payload.eerValue}) < 0.02,
+  nnt == ${payload.nntValue},
+  events == ${payload.eventsPer1000}
+)
+if (all(checks)) {
+  "PASS|The HR-to-risk worked example matches the WebR recomputation."
+} else {
+  "FAIL|The HR-to-risk converter output no longer matches the WebR recomputation for the built-in worked example."
+}`.trim();
+                    }
+                },
+                {
+                    name: 'RR example matches WebR-derived OR and EER values',
+                    collect(h) {
+                        document.getElementById('esc-type').value = 'rr';
+                        document.getElementById('esc-value').value = '0.75';
+                        document.getElementById('esc-cer').value = '20';
+                        window.convertEffectSize();
+                        const cells = Array.from(document.querySelectorAll('#escResults td'));
+                        const values = {};
+                        for (let index = 0; index < cells.length; index += 2) {
+                            values[cells[index].textContent.trim()] = cells[index + 1].textContent.trim();
+                        }
+                        return {
+                            orValue: h.parseNumber(values['OR']),
+                            rrValue: h.parseNumber(values['RR']),
+                            eerValue: h.parseNumber(values['EER']),
+                        };
+                    },
+                    r(payload) {
+                        return `
+cer <- 0.20
+rr <- 0.75
+or_value <- rr * (1 - cer) / (1 - rr * cer)
+eer <- rr * cer
+checks <- c(
+  abs(round(or_value, 3) - ${payload.orValue}) < 0.001,
+  abs(round(rr, 3) - ${payload.rrValue}) < 0.001,
+  abs(round(eer * 100, 2) - ${payload.eerValue}) < 0.02
+)
+if (all(checks)) {
+  "PASS|The RR-to-risk worked example matches the WebR recomputation."
+} else {
+  "FAIL|The RR-to-risk converter output no longer matches the WebR recomputation for the worked example."
+}`.trim();
+                    }
+                }
+            ]
+        };
+    </script>
+    <script src="../_shared/webr-validation.js"></script>
 </body>
 </html>
