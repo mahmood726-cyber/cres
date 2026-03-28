@@ -1,5 +1,13 @@
 # CRES: A browser-based interactive evidence synthesis platform for cardiorenal pharmacotherapy with integrated meta-analysis, GRADE assessment, and health-economic modelling
 
+**Authors:** Mahmood Ahmad^1^
+
+^1^ Royal Free Hospital, London, United Kingdom
+
+**Corresponding author:** mahmood.ahmad2@nhs.net
+
+**ORCID:** 0009-0003-7781-4478
+
 **Target journal:** PLOS ONE
 
 ---
