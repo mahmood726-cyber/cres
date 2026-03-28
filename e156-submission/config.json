@@ -1,0 +1,59 @@
+{
+  "title": "CRES: Browser-Based Cardiorenal Evidence Synthesis with Integrated Meta-Analysis and Health-Economic Modelling",
+  "slug": "cres-cardiorenal-evidence-synthesis",
+  "author": "Mahmood Ahmad",
+  "date": "2026-03-26",
+  "path": "C:\\Models\\CRES",
+  "type": "methods",
+  "primary_estimand": "Hazard ratio",
+  "summary": "A single-file browser platform synthesizing 20 cardiorenal RCTs with meta-analysis, cost-effectiveness modelling, GRADE assessments, and RoB 2.0 evaluations.",
+  "body": "Can a single browser-based file deliver transparent, reproducible cardiorenal evidence synthesis integrating meta-analysis with health-economic modelling? CRES curates 20 randomised controlled trials enrolling 123,977 participants across finerenone, SGLT2 inhibitors, and steroidal mineralocorticoid receptor antagonists for cardiorenal outcomes. The platform implements DerSimonian-Laird random-effects pooling with t-distribution confidence intervals, a three-state Markov cost-effectiveness model, probabilistic sensitivity analysis, GRADE assessments, and Cochrane Risk of Bias 2.0 evaluations, cross-validated against R metafor version 4.8. Pooled HR was 0.79 for SGLT2 inhibitors (95% CI 0.71 to 0.87), 0.87 for finerenone, and 0.75 for steroidal MRAs, with I-squared of 50.3 percent and GRADE certainty rated LOW for the composite. An automated Selenium suite verified 227 end-to-end assertions spanning all computational outputs, interface elements, and security properties. CRES demonstrates that portable, installation-free evidence synthesis can honestly surface both favourable and unfavourable findings within a single auditable artifact. A limitation is that single-author data extraction departs from PRISMA best practice of independent dual extraction.",
+  "sentences": [
+    {
+      "role": "Question",
+      "text": "Can a single browser-based file deliver transparent, reproducible cardiorenal evidence synthesis integrating meta-analysis with health-economic modelling?"
+    },
+    {
+      "role": "Dataset",
+      "text": "CRES curates 20 randomised controlled trials enrolling 123,977 participants across finerenone, SGLT2 inhibitors, and steroidal mineralocorticoid receptor antagonists for cardiorenal outcomes."
+    },
+    {
+      "role": "Method",
+      "text": "The platform implements DerSimonian-Laird random-effects pooling with t-distribution confidence intervals, a three-state Markov cost-effectiveness model, probabilistic sensitivity analysis, GRADE assessments, and Cochrane Risk of Bias 2.0 evaluations, cross-validated against R metafor version 4.8."
+    },
+    {
+      "role": "Primary result",
+      "text": "Pooled HR was 0.79 for SGLT2 inhibitors (95% CI 0.71 to 0.87), 0.87 for finerenone, and 0.75 for steroidal MRAs, with I-squared of 50.3 percent and GRADE certainty rated LOW for the composite."
+    },
+    {
+      "role": "Robustness",
+      "text": "An automated Selenium suite verified 227 end-to-end assertions spanning all computational outputs, interface elements, and security properties."
+    },
+    {
+      "role": "Interpretation",
+      "text": "CRES demonstrates that portable, installation-free evidence synthesis can honestly surface both favourable and unfavourable findings within a single auditable artifact."
+    },
+    {
+      "role": "Boundary",
+      "text": "A limitation is that single-author data extraction departs from PRISMA best practice of independent dual extraction."
+    }
+  ],
+  "notes": {
+    "app": "CRES v5.0",
+    "data": "20 RCTs (N=123,977): finerenone, SGLT2i, steroidal MRA",
+    "code": "https://github.com/mahmood726-cyber/cres",
+    "doi": "",
+    "version": "5.0",
+    "date": "2026-03-26",
+    "validation": "DRAFT"
+  },
+  "study_count": 20,
+  "participant_count": 123977,
+  "affiliation": "Tahir Heart Institute",
+  "email": "mahmood.ahmad2@nhs.net",
+  "references": [
+    "Guyatt GH, Oxman AD, Vist GE, et al. GRADE: an emerging consensus on rating quality of evidence and strength of recommendations. BMJ. 2008;336(7650):924-926.",
+    "Schunemann HJ, Higgins JPT, Vist GE, et al. Completing 'Summary of findings' tables and grading the certainty of the evidence. Cochrane Handbook Chapter 14. Cochrane; 2023.",
+    "Borenstein M, Hedges LV, Higgins JPT, Rothstein HR. Introduction to Meta-Analysis. 2nd ed. Wiley; 2021."
+  ]
+}
